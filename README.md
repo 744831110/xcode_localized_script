@@ -1,0 +1,1 @@
+# xcode_localized_script
