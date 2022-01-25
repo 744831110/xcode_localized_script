@@ -7,40 +7,39 @@ require_relative 'config'
 module Localized
 
   class LocalizedData
-    attr_accessor :localizedKey
-    attr_accessor :languageHash
+    attr_accessor :localized_key
+    attr_accessor :language_hash
 
     def initialize
-      self.languageHash = Hash.new
+      self.language_hash = Hash.new
     end
 
     def [](language)
       if LANGUAGE.include?(language)
-        self.languageHash[language]
+        self.language_hash[language]
       end
     end
 
     def []=(language, value)
       if LANGUAGE.include?(language)
-        self.languageHash[language] = value
+        self.language_hash[language] = FormatParsing.transform_str_value(value)
       end
     end
 
-    def getLocalizedForLanguage(language)
-      value = "\"#{localizedKey}\" = \"#{languageHash[language]}\";\n"
+    def get_localized_for_language(language)
+       "\"#{localized_key}\" = \"#{language_hash[language]}\";\n"
     end
   end
 
   module LoadLocalizedData
-
-    def self.loadDataFromLocalXLSX
+    def self.load_data_from_local_xlsx
       workbook = Roo::Spreadsheet.open(XLSX_PATH)
       worksheet = workbook.sheet(0)
       localized_datas = []
       (2..worksheet.last_row).each do |row|
         row_data = worksheet.row(row)
         data = LocalizedData.new
-        data.localizedKey = row_data[0]
+        data.localized_key = row_data[0]
         (0..LANGUAGE.length-1).each do |i|
           data[LANGUAGE[i]] = row_data[i+1]
         end
@@ -54,10 +53,10 @@ module Localized
   # path: 存放国际化的文件夹，其中存放.lproj
   # strings_name: .strings文件名
   # group_path: xcode中存放国际化的路径
-  def self.updateLocalized(data, path, strings_name)
+  def self.update_localized(data, path, strings_name)
 
     project = Xcodeproj::Project.open(PROJECT_PROJ_PATH)
-    varint_group = XcodeTool.getVariantGroup(project, strings_name)
+    varint_group = XcodeTool.get_variant_group(project, strings_name)
     if varint_group.nil?
       # 创建varint_group以及在resource build_phase中引用
       strings_relative_path = path.relative_path_from(Pathname(PROJECT_PATH)).to_s
@@ -72,35 +71,36 @@ module Localized
     end
 
     LANGUAGE.each do |language|
+      # zh-Hans.lproj 下的 localized.strings
       language_dir_name = "#{language}.lproj"
       language_dir = path+language_dir_name
       strings_path = language_dir+"#{strings_name}.strings"
-      FileTool.findDir(path, language_dir_name, true)
-      if FileTool.findFileWithName(language_dir, "#{strings_name}.strings", true).empty?
-        XcodeTool.addFileReference(language, varint_group, strings_path.relative_path_from(path))
+      FileTool.find_dir(path, language_dir_name, true)
+      if FileTool.find_file(language_dir, "#{strings_name}.strings", true).empty?
+        XcodeTool.add_file_reference(language, varint_group, strings_path.relative_path_from(path))
         project.save
-        XcodeTool.addLocalizeLanguage(language, project)
+        XcodeTool.add_localize_language(language, project)
         project.save
       end
       #修改.strings
       update_hash = Hash.new
       data.each do |item|
-        update_hash[item.localizedKey] = item[language]
+        update_hash[item.localized_key] = item[language]
       end
-      updateStrings(update_hash, strings_path)
+      update_strings(update_hash, strings_path)
     end
   end
 
-  def self.updateStrings(update_hash, strings_path)
+  def self.update_strings(update_hash, strings_path)
     # 原来.string中的键值对
     line_hash = Hash.new
     repeat_hash = Hash.new
     file_data = File.open(strings_path).read
-    clean_strings = FormatParsing.remove_comments_and_empty_lines(file_data)
+    clean_strings = FormatParsing.remove_comments_and_empty(file_data)
 
     clean_strings.each_line do |line|
       next if line.to_s.start_with?('//') || line.to_s.start_with?('/*')
-      hash_key, hash_value = FormatParsing.parsingLocalizedString(line)
+      hash_key, hash_value = FormatParsing.parsing_localized_string(line, strings_path)
       # 查原来.string键值对的重
       analysis_repeat(line_hash, repeat_hash, hash_key, hash_value)
     end
@@ -109,6 +109,8 @@ module Localized
     #删除重复键值对
     line_hash.delete_if { |k, v| repeat_hash.has_key?(k) }
     sort_save(line_hash, repeat_hash, strings_path)
+    plutil_check = `plutil #{strings_path}`
+    puts plutil_check
   end
 
   def self.analysis_repeat(line_hash, repeat_hash, key, value)
@@ -166,17 +168,17 @@ module Localized
 
 end
 
-datas = Localized::LoadLocalizedData.loadDataFromLocalXLSX
-Localized.updateLocalized(datas, Pathname(PROJECT_PATH + "CrashDemo/Resource"), "CommonText")
+datas = Localized::LoadLocalizedData.load_data_from_local_xlsx
+Localized.update_localized(datas, Pathname(STRINGS_DIR), STRINGS_NAME)
 
 
 # 1. 读取国际化文案(load data) -
-# 2. 转成hash map(原有占位符需要进行替换，比如%s转成%@)
+# 2. 转成hash map(原有占位符需要进行替换，比如%s转成%@) -
 # 3. 对比原有.strings进行新增和覆盖 -
 # 4. 若不存在strings则新建strings并建立引用 -
 # 5. 若存在任何一种语言的strings则不用建立引用 -
 # 6. 寻找未使用过的国际化文案
-# 7. 国际化文案校验
+# 7. 国际化文案校验 -
 # 8. 国际化文案为空，重复提示 -
 # 9. 便利方法
 #
