@@ -32,6 +32,7 @@ module Localized
   end
 
   module LoadLocalizedData
+    # 从xml中读取
     def self.load_data_from_local_xlsx
       workbook = Roo::Spreadsheet.open(XLSX_PATH)
       worksheet = workbook.sheet(0)
@@ -48,6 +49,31 @@ module Localized
       localized_datas
     end
 
+    # 从项目中.strings中读取
+    def self.read_local_localized
+      localized_data_hash = Hash.new
+      paths = FileTool.find_file_with_ext(Pathname(PROJECT_PATH), ".strings")
+      paths.each do |path|
+        language = path.dirname.to_s.split("/").last.split(".").first
+        file_data = File.open(path).read
+        #把//和/*的判断放进remove_comments_and_empty
+        clean_strings = FormatParsing.remove_comments_and_empty(file_data)
+        clean_strings.each_line do |line|
+          next if line.to_s.start_with?('//') || line.to_s.start_with?('/*')
+          hash_key, hash_value = FormatParsing.parsing_localized_string(line, path)
+          if localized_data_hash.has_key?(hash_key)
+            data = localized_data_hash[hash_key]
+            data[language] = hash_value
+          else
+            data = LocalizedData.new
+            data.localized_key = hash_key
+            data[language] = hash_value
+            localized_data_hash[hash_key] = data
+          end
+        end
+      end
+      localized_data_hash.values
+    end
   end
 
   # path: 存放国际化的文件夹，其中存放.lproj
@@ -168,19 +194,6 @@ module Localized
 
 end
 
-datas = Localized::LoadLocalizedData.load_data_from_local_xlsx
-Localized.update_localized(datas, Pathname(STRINGS_DIR), STRINGS_NAME)
-
-
-# 1. 读取国际化文案(load data) -
-# 2. 转成hash map(原有占位符需要进行替换，比如%s转成%@) -
-# 3. 对比原有.strings进行新增和覆盖 -
-# 4. 若不存在strings则新建strings并建立引用 -
-# 5. 若存在任何一种语言的strings则不用建立引用 -
-# 6. 寻找未使用过的国际化文案
-# 7. 国际化文案校验 -
-# 8. 国际化文案为空，重复提示 -
-# 9. 便利方法
-#
-# 原有多个strings文件合并，整合成一个
-# 整理代码
+# datas = Localized::LoadLocalizedData.read_local_localized
+ datas = Localized::LoadLocalizedData.load_data_from_local_xlsx
+ Localized.update_localized(datas, Pathname(STRINGS_DIR), STRINGS_NAME)

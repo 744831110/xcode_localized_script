@@ -28,6 +28,17 @@ module FileTool
     end
     result
   end
+
+  def self.find_file_with_ext(path, extname)
+    result = path.children.collect do |child|
+      if child.file? && child.extname.eql?(extname)
+        child
+      elsif child.directory?
+          find_file_with_ext(child, extname)
+      end
+    end.flatten.compact
+    result
+  end
 end
 
 module FormatParsing

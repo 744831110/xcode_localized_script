@@ -1,9 +1,11 @@
-XLSX_PATH = ''
-PROJECT_PATH = ''
-PROJECT_NAME = ''
-PROJECT_PROJ_PATH = PROJECT_PATH + PROJECT_NAME + '.xcodeproj'
-STRINGS_NAME = 'CommonText'
-STRINGS_DIR = ''
+
+XLSX_PATH = 'demo/localized.xlsx'
+PROJECT_PATH = 'demo/localizedDemo/'
+PROJECT_NAME = 'localizedDemo'
+PROJECT_PROJ_PATH = PROJECT_PATH + PROJECT_NAME + ".xcodeproj"
+
+STRINGS_NAME = "CommonText"
+STRINGS_DIR = PROJECT_PATH + PROJECT_NAME
 
 LANGUAGE_CODE_ZH_HANS = 'zh-Hans'
 LANGUAGE_CODE_ZH_HANT = 'zh-Hant'
